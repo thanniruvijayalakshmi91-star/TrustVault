@@ -11,7 +11,7 @@ router.post("/register", async (req,res) => {
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({message:"Enter a valid email."});
     if(password.length<8) return res.status(400).json({message:"Password must be at least 8 characters."});
     const hash=await bcrypt.hash(password,12);
-    const role=process.env.ADMIN_EMAIL&&email===process.env.ADMIN_EMAIL.toLowerCase()?"admin":"owner";
+    const role="owner";
     const result=await pool.query("INSERT INTO users(name,email,password_hash,role) VALUES($1,$2,$3,$4) RETURNING id,name,email,role",[name,email,hash,role]);
     req.session.user=result.rows[0];
     await pool.query("INSERT INTO audit_logs(user_id,action,details) VALUES($1,'REGISTER','Account created')",[result.rows[0].id]);
