@@ -1,13 +1,23 @@
 const { Pool } = require("pg");
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is missing. Add your PostgreSQL connection string.");
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+
 async function initializeDatabase() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, email VARCHAR(255) UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL, role VARCHAR(20) NOT NULL DEFAULT 'owner'
-        CHECK (role IN ('admin','owner','viewer')), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      password_hash TEXT, role VARCHAR(20) NOT NULL DEFAULT 'owner',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='password') THEN
+        EXECUTE 'UPDATE users SET password_hash = password WHERE password_hash IS NULL';
+        EXECUTE 'ALTER TABLE users ALTER COLUMN password DROP NOT NULL';
+      END IF;
+    END $$;
+
     CREATE TABLE IF NOT EXISTS documents (
       id SERIAL PRIMARY KEY, owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       original_name TEXT NOT NULL, stored_name TEXT NOT NULL UNIQUE, mime_type TEXT NOT NULL,
