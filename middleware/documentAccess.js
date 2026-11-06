@@ -9,20 +9,18 @@ function canReadDocument(document, user) {
 }
 
 function canEditDocument(document, user) {
-  return Boolean(document && user && (
-    user.role === "admin" ||
+  if (!document || !user || user.role === "viewer") return false;
+  return user.role === "admin" ||
     Number(document.owner_id) === Number(user.id) ||
     document.permission === "edit" ||
-    document.permission === "owner"
-  ));
+    document.permission === "owner";
 }
 
 function canManageDocument(document, user) {
-  return Boolean(document && user && (
-    user.role === "admin" ||
+  if (!document || !user || user.role === "viewer") return false;
+  return user.role === "admin" ||
     Number(document.owner_id) === Number(user.id) ||
-    document.permission === "owner"
-  ));
+    document.permission === "owner";
 }
 
 module.exports = { canReadDocument, canEditDocument, canManageDocument };
