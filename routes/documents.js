@@ -37,10 +37,32 @@ router.get("/:id/shares",requireAuth,async(req,res)=>{
   res.json({shares:r.rows});
  }catch(e){console.error(e.message);res.status(500).json({message:"Could not load sharing details."});}
 });
+async function validateFile(file){
+ const handle=await fs.promises.open(file.path,"r");
+ try{
+  const buffer=Buffer.alloc(8);
+  const {bytesRead}=await handle.read(buffer,0,8,0);
+  const head=buffer.subarray(0,bytesRead);
+  if(file.mimetype==="application/pdf") return head.subarray(0,5).toString()==="%PDF-";
+  if(file.mimetype==="image/png") return head.length>=8&&head.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+  if(file.mimetype==="image/jpeg") return head.length>=3&&head[0]===255&&head[1]===216&&head[2]===255;
+  if(file.mimetype==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"||file.mimetype==="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") return head.length>=4&&head[0]===80&&head[1]===75&&head[2]===3&&head[3]===4;
+  if(file.mimetype==="text/plain"){
+   const sample=Buffer.alloc(4096);
+   const result=await handle.read(sample,0,sample.length,0);
+   return !sample.subarray(0,result.bytesRead).includes(0);
+  }
+  return false;
+ }finally{await handle.close();}
+}
 router.post("/upload",requireAuth,upload.single("document"),async(req,res)=>{
  if(!req.file)return res.status(400).json({message:"Choose a file."});
- try{const r=await pool.query("INSERT INTO documents(owner_id,original_name,stored_name,mime_type,file_size) VALUES($1,$2,$3,$4,$5) RETURNING id,original_name,mime_type,file_size,created_at",[req.user.id,path.basename(req.file.originalname),req.file.filename,req.file.mimetype,req.file.size]);await audit(req.user.id,"UPLOAD","Uploaded "+path.basename(req.file.originalname));res.status(201).json({document:r.rows[0]});}
- catch(e){fs.unlink(req.file.path,()=>{});console.error(e.message);res.status(500).json({message:"Could not save document."});}
+ try{
+  if(!(await validateFile(req.file))){fs.unlink(req.file.path,()=>{});return res.status(400).json({message:"The file content does not match its selected file type."});}
+  const r=await pool.query("INSERT INTO documents(owner_id,original_name,stored_name,mime_type,file_size) VALUES($1,$2,$3,$4,$5) RETURNING id,original_name,mime_type,file_size,created_at",[req.user.id,path.basename(req.file.originalname),req.file.filename,req.file.mimetype,req.file.size]);
+  await audit(req.user.id,"UPLOAD","Uploaded "+path.basename(req.file.originalname));
+  res.status(201).json({document:r.rows[0]});
+ }catch(e){fs.unlink(req.file.path,()=>{});console.error(e.message);res.status(500).json({message:"Could not save document."});}
 });
 router.get("/:id/download",requireAuth,async(req,res)=>{
  try{const d=await access(req.params.id,req.user);if(!d)return res.status(404).json({message:"Document not found or access denied."});const p=path.join(folder,d.stored_name);if(!fs.existsSync(p))return res.status(404).json({message:"Stored file not found."});await audit(req.user.id,"DOWNLOAD","Downloaded "+d.original_name);res.download(p,d.original_name);}
