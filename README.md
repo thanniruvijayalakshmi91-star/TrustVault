@@ -7,7 +7,8 @@ A Node.js and Express application for private document storage, controlled shari
 - Session-based authentication stored in PostgreSQL.
 - Owner and admin roles; documents can be shared with read or edit permission.
 - Private document upload and authorized download.
-- Grant and revoke document access.
+- Grant, review, and revoke document access.
+- Search accessible documents by file name or owner.
 - File type validation and 10 MB upload limit.
 - Audit logs for account and document activity.
 - Admin overview with user, document, and share counts.
@@ -27,7 +28,7 @@ Database tables are created automatically when the server starts.
 
 ## Main API
 - POST /api/auth/register, POST /api/auth/login, GET /api/auth/me, POST /api/auth/logout
-- GET /api/documents, POST /api/documents/upload
+- GET /api/documents?q=search, GET /api/documents/:id/shares, POST /api/documents/upload
 - GET /api/documents/:id/download, POST /api/documents/:id/share
 - DELETE /api/documents/:id/share/:userId, DELETE /api/documents/:id
 - GET /api/admin/stats (admin only)
