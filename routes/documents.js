@@ -28,8 +28,8 @@ router.get("/",requireAuth,async(req,res)=>{
    WHERE (d.owner_id=$1 OR $2='admin' OR s.user_id=$1)
    AND ($3='' OR d.original_name ILIKE '%' || $3 || '%' OR u.name ILIKE '%' || $3 || '%')
    AND ($4='' OR d.category=$4)
-   AND ($5='' OR d.created_at >= $5::date)
-   AND ($6='' OR d.created_at < ($6::date + INTERVAL '1 day'))
+   AND (NULLIF($5,'') IS NULL OR d.created_at >= NULLIF($5,'')::date)
+   AND (NULLIF($6,'') IS NULL OR d.created_at < (NULLIF($6,'')::date + INTERVAL '1 day'))
    ORDER BY d.created_at DESC`,[req.user.id,req.user.role,q,category,from,to]);
   res.json({documents:r.rows});
  } catch(e){console.error(e.message);res.status(500).json({message:"Could not load documents."});}
