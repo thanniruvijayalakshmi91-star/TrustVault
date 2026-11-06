@@ -21,8 +21,11 @@ async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS documents (
       id SERIAL PRIMARY KEY, owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       original_name TEXT NOT NULL, stored_name TEXT NOT NULL UNIQUE, mime_type TEXT NOT NULL,
-      file_size BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      file_size BIGINT NOT NULL, category VARCHAR(100) NOT NULL DEFAULT 'Uncategorized',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR(100) NOT NULL DEFAULT 'Uncategorized';
+
     CREATE TABLE IF NOT EXISTS document_shares (
       id SERIAL PRIMARY KEY, document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -36,11 +39,11 @@ async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_documents_owner ON documents(owner_id);
     CREATE INDEX IF NOT EXISTS idx_shares_user ON document_shares(user_id);
     CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
-    CREATE OR REPLACE FUNCTION prevent_audit_log_mutation() RETURNS trigger AS $
+    CREATE OR REPLACE FUNCTION prevent_audit_log_mutation() RETURNS trigger AS $body$
     BEGIN
       RAISE EXCEPTION 'Audit log records are append-only';
     END;
-    $ LANGUAGE plpgsql;
+    $body$ LANGUAGE plpgsql;
     DROP TRIGGER IF EXISTS audit_logs_no_update_delete ON audit_logs;
     CREATE TRIGGER audit_logs_no_update_delete
       BEFORE UPDATE OR DELETE ON audit_logs
