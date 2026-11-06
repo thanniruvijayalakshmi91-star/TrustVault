@@ -17,12 +17,25 @@ async function access(id,user){
  WHERE d.id=$1 AND (d.owner_id=$2 OR $3='admin' OR s.user_id=$2)`,[id,user.id,user.role]);return r.rows[0];
 }
 router.get("/",requireAuth,async(req,res)=>{
- try{const r=await pool.query(`SELECT d.id,d.original_name,d.mime_type,d.file_size,d.created_at,u.name owner_name,
- CASE WHEN d.owner_id=$1 OR $2='admin' THEN 'owner' ELSE s.permission END permission,
- (d.owner_id=$1 OR $2='admin') is_owner
- FROM documents d JOIN users u ON u.id=d.owner_id LEFT JOIN document_shares s ON s.document_id=d.id AND s.user_id=$1
- WHERE d.owner_id=$1 OR $2='admin' OR s.user_id=$1 ORDER BY d.created_at DESC`,[req.user.id,req.user.role]);res.json({documents:r.rows});}
- catch(e){console.error(e.message);res.status(500).json({message:"Could not load documents."});}
+ try{
+  const q=String(req.query.q||"").trim().slice(0,100);
+  const r=await pool.query(`SELECT d.id,d.original_name,d.mime_type,d.file_size,d.created_at,u.name owner_name,
+   CASE WHEN d.owner_id=$1 OR $2='admin' THEN 'owner' ELSE s.permission END permission,
+   (d.owner_id=$1 OR $2='admin') is_owner
+   FROM documents d JOIN users u ON u.id=d.owner_id LEFT JOIN document_shares s ON s.document_id=d.id AND s.user_id=$1
+   WHERE (d.owner_id=$1 OR $2='admin' OR s.user_id=$1)
+   AND ($3='' OR d.original_name ILIKE '%' || $3 || '%' OR u.name ILIKE '%' || $3 || '%')
+   ORDER BY d.created_at DESC`,[req.user.id,req.user.role,q]);
+  res.json({documents:r.rows});
+ } catch(e){console.error(e.message);res.status(500).json({message:"Could not load documents."});}
+});
+router.get("/:id/shares",requireAuth,async(req,res)=>{
+ try{
+  const d=await access(req.params.id,req.user);
+  if(!d || (d.permission!=="owner" && req.user.role!=="admin")) return res.status(403).json({message:"Only the owner can view sharing details."});
+  const r=await pool.query("SELECT s.user_id,u.name,u.email,s.permission FROM document_shares s JOIN users u ON u.id=s.user_id WHERE s.document_id=$1 ORDER BY u.name",[d.id]);
+  res.json({shares:r.rows});
+ }catch(e){console.error(e.message);res.status(500).json({message:"Could not load sharing details."});}
 });
 router.post("/upload",requireAuth,upload.single("document"),async(req,res)=>{
  if(!req.file)return res.status(400).json({message:"Choose a file."});
