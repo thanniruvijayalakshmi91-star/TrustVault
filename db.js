@@ -36,6 +36,15 @@ async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_documents_owner ON documents(owner_id);
     CREATE INDEX IF NOT EXISTS idx_shares_user ON document_shares(user_id);
     CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
+    CREATE OR REPLACE FUNCTION prevent_audit_log_mutation() RETURNS trigger AS $
+    BEGIN
+      RAISE EXCEPTION 'Audit log records are append-only';
+    END;
+    $ LANGUAGE plpgsql;
+    DROP TRIGGER IF EXISTS audit_logs_no_update_delete ON audit_logs;
+    CREATE TRIGGER audit_logs_no_update_delete
+      BEFORE UPDATE OR DELETE ON audit_logs
+      FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_mutation();
   `);
 }
 module.exports = { pool, initializeDatabase };
