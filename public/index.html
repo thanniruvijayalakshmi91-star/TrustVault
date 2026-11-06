@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TrustVault | Secure Document Sharing</title><link rel="stylesheet" href="/styles.css"></head>
+<body><header class="topbar"><a class="brand" href="/">🔐 TrustVault</a><span id="account"></span></header><main class="container">
+<section class="hero"><p class="eyebrow">PRIVATE · CONTROLLED · AUDITABLE</p><h1>Your documents, shared securely.</h1><p>Store files, control access, and track important activity.</p></section>
+<section id="auth" class="panel auth-grid">
+<form id="loginForm"><h2>Welcome back</h2><label>Email<input name="email" type="email" required></label><label>Password<input name="password" type="password" minlength="8" required></label><button>Log in</button></form>
+<form id="registerForm"><h2>Create account</h2><label>Your name<input name="name" required minlength="2"></label><label>Email<input name="email" type="email" required></label><label>Password<input name="password" type="password" minlength="8" required></label><button class="secondary">Create account</button></form></section>
+<section id="dashboard" hidden><div class="welcome-row"><div><p class="eyebrow">YOUR WORKSPACE</p><h2 id="welcome">My documents</h2><p class="muted">Upload files or view documents shared with you.</p></div><button id="logout" class="outline">Log out</button></div>
+<section class="panel upload-panel"><div><h3>Upload a document</h3><p class="muted">PDF, TXT, JPG, PNG, DOCX, XLSX · Maximum 10 MB</p></div><form id="uploadForm"><input type="file" name="document" required><button>Upload</button></form></section>
+<section id="adminPanel" class="panel" hidden><h3>Admin overview</h3><div id="stats" class="stats"></div><h4>Recent activity</h4><div id="activity"></div></section>
+<section class="documents"><div class="section-heading"><h3>Documents</h3><button id="refresh" class="outline">Refresh</button></div><div id="documentList" class="document-grid"></div></section></section>
+<p id="notice" role="status" class="notice"></p></main><footer>TrustVault · Secure document sharing</footer><script src="/app.js" defer></script></body></html>
