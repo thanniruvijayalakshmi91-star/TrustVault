@@ -115,6 +115,28 @@ async function loadDocuments() {
       actions.className = "actions";
       actions.append(makeButton("Download", "", () => downloadDocument(documentInfo.id)));
       card.append(heading, meta, actions);
+      if (!documentInfo.is_owner && documentInfo.permission === "edit") {
+        const replaceForm = document.createElement("form");
+        replaceForm.className = "share-form";
+        const replacement = document.createElement("input");
+        replacement.type = "file";
+        replacement.required = true;
+        replacement.setAttribute("aria-label", "Choose replacement document");
+        const replaceButton = makeButton("Save edit", "", null);
+        replaceForm.append(replacement, replaceButton);
+        replaceForm.addEventListener("submit", async event => {
+          event.preventDefault();
+          if (!replacement.files[0]) return;
+          const body = new FormData();
+          body.append("document", replacement.files[0]);
+          try {
+            await api("/api/documents/" + documentInfo.id + "/replace", { method: "POST", body });
+            await loadDocuments();
+            message("Document updated.");
+          } catch (error) { message(error.message, true); }
+        });
+        card.append(replaceForm);
+      }
 
       if (documentInfo.is_owner) {
         actions.append(makeButton("Delete", "outline", async () => {
