@@ -17,6 +17,10 @@ This file records AI-assisted development for the Snovasys challenge. Review, te
 - Added an API to list users who have access to a document.
 - Connected the dashboard to the revoke-access API so owners can revoke sharing.
 
+## Security correction
+- Found a privilege-escalation issue: public registration previously assigned the admin role to anyone who registered with the configured ADMIN_EMAIL address. Changed registration so all new public accounts receive the normal owner role.
+- Added a separate server-side `npm run make-admin` command to promote the intended existing account. This command must only be run by the project owner from a trusted terminal.
+
 ## Verification still required
 - Run npm install and npm start.
 - Test registration and login with two separate test accounts.
