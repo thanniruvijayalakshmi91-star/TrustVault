@@ -6,11 +6,12 @@ TrustVault is a Node.js and Express web application for storing documents privat
 
 - User registration and login with bcrypt password hashing.
 - PostgreSQL-backed sessions.
-- Owner and admin roles; document sharing with read or edit access.
+- Admin, owner, and read-only viewer roles; document sharing with read or edit access.
 - Admin privileges are granted only through an explicit server-side command, never by public registration.
 - Private document upload and authorized download.
 - Grant, review, and revoke document access.
-- Search accessible documents by file name, owner, category, and date.\n- Users with edit permission can replace a shared document; read-only users cannot.
+- Search accessible documents by file name, owner, category, and date.
+- Users with edit permission can replace a shared document; read-only users cannot.
 - File type checks and a 10 MB upload limit.
 - Audit logs for account and document activity.
 - Admin dashboard with user, document, share, and recent-activity information.
@@ -89,7 +90,8 @@ Open http://localhost:5000.
 | GET | `/api/auth/me` | Get current user |
 | POST | `/api/auth/logout` | Sign out |
 | GET | `/api/documents?q=search` | List/search accessible documents |
-| POST | `/api/documents/upload` | Upload a document with an optional category |\n| POST | `/api/documents/:id/replace` | Replace a document (owner/admin/editor only) |
+| POST | `/api/documents/upload` | Upload a document with an optional category |
+| POST | `/api/documents/:id/replace` | Replace a document (owner/admin/editor only) |
 | GET | `/api/documents/:id/download` | Download an authorized document |
 | POST | `/api/documents/:id/share` | Grant read/edit access |
 | GET | `/api/documents/:id/shares` | List people with access (owner/admin) |
@@ -109,7 +111,9 @@ Open http://localhost:5000.
 - [ ] Log in as the second account and confirm download works.
 - [ ] Confirm the second account cannot delete or share the owner's document.
 - [ ] Revoke access and confirm the second account can no longer download it.
-- [ ] Test edit permission assignment and document replacement as an editor.\n- [ ] Test category and date filters.\n- [ ] Confirm denied direct API attempts are recorded in the audit log.
+- [ ] Test edit permission assignment and document replacement as an editor.
+- [ ] Test category and date filters.
+- [ ] Confirm denied direct API attempts are recorded in the audit log.
 - [ ] Check the admin dashboard using the configured admin account.
 - [ ] Confirm audit activity is recorded.
 
@@ -130,4 +134,6 @@ Open http://localhost:5000.
 3. Run `npm run make-admin` once from a trusted terminal connected to the same database.
 4. Restart the application and sign in again. Public registration always creates a normal owner account; it cannot grant admin privileges.
 
-Do not expose the admin promotion command to the public website.
+Do not expose the admin or viewer promotion commands to the public website.
+
+To prepare a read-only viewer test account, register it normally, set `VIEWER_EMAIL` to that account in the trusted server environment, then run `npm run make-viewer` once. Viewer accounts can read permitted documents but cannot upload, replace, share, or delete documents.
