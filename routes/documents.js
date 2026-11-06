@@ -20,14 +20,17 @@ async function access(id,user){
 }
 router.get("/",requireAuth,async(req,res)=>{
  try{
-  const q=String(req.query.q||"").trim().slice(0,100);
-  const r=await pool.query(`SELECT d.id,d.original_name,d.mime_type,d.file_size,d.created_at,u.name owner_name,
+  const q=String(req.query.q||"").trim().slice(0,100), category=String(req.query.category||"").trim().slice(0,100), from=String(req.query.from||"").trim(), to=String(req.query.to||"").trim();
+  const r=await pool.query(`SELECT d.id,d.original_name,d.mime_type,d.file_size,d.created_at,d.category,u.name owner_name,
    CASE WHEN d.owner_id=$1 OR $2='admin' THEN 'owner' ELSE s.permission END permission,
    (d.owner_id=$1 OR $2='admin') is_owner
    FROM documents d JOIN users u ON u.id=d.owner_id LEFT JOIN document_shares s ON s.document_id=d.id AND s.user_id=$1
    WHERE (d.owner_id=$1 OR $2='admin' OR s.user_id=$1)
    AND ($3='' OR d.original_name ILIKE '%' || $3 || '%' OR u.name ILIKE '%' || $3 || '%')
-   ORDER BY d.created_at DESC`,[req.user.id,req.user.role,q]);
+   AND ($4='' OR d.category=$4)
+   AND ($5='' OR d.created_at >= $5::date)
+   AND ($6='' OR d.created_at < ($6::date + INTERVAL '1 day'))
+   ORDER BY d.created_at DESC`,[req.user.id,req.user.role,q,category,from,to]);
   res.json({documents:r.rows});
  } catch(e){console.error(e.message);res.status(500).json({message:"Could not load documents."});}
 });
@@ -61,7 +64,8 @@ router.post("/upload",requireAuth,upload.single("document"),async(req,res)=>{
  if(!req.file)return res.status(400).json({message:"Choose a file."});
  try{
   if(!(await validateFile(req.file))){fs.unlink(req.file.path,()=>{});return res.status(400).json({message:"The file content does not match its selected file type."});}
-  const r=await pool.query("INSERT INTO documents(owner_id,original_name,stored_name,mime_type,file_size) VALUES($1,$2,$3,$4,$5) RETURNING id,original_name,mime_type,file_size,created_at",[req.user.id,path.basename(req.file.originalname),req.file.filename,req.file.mimetype,req.file.size]);
+  const category=String(req.body.category||"Uncategorized").trim().slice(0,100)||"Uncategorized";
+  const r=await pool.query("INSERT INTO documents(owner_id,original_name,stored_name,mime_type,file_size,category) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,original_name,mime_type,file_size,category,created_at",[req.user.id,path.basename(req.file.originalname),req.file.filename,req.file.mimetype,req.file.size,category]);
   await audit(req.user.id,"UPLOAD","Uploaded "+path.basename(req.file.originalname));
   res.status(201).json({document:r.rows[0]});
  }catch(e){fs.unlink(req.file.path,()=>{});console.error(e.message);res.status(500).json({message:"Could not save document."});}
