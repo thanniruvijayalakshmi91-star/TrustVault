@@ -48,9 +48,10 @@ TrustVault is a Node.js and Express web application for storing documents privat
 
    Keep the real `.env` file private. Never commit it or share its secret values.
 
-7. Run the syntax checks:
+7. Run the syntax checks and permission tests:
 
    ```bash
+   npm run check
    npm test
    ```
 
