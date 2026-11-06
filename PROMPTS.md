@@ -12,10 +12,15 @@ This file records AI-assisted development for the Snovasys challenge. Review, te
 - The npm funding notice is informational and is not an installation failure. Continue with npm start.
 - The database connection must be provided through DATABASE_URL. The .env file must not be committed.
 
+## Later improvements added
+- Added server-side document search by file name or owner.
+- Added an API to list users who have access to a document.
+- Connected the dashboard to the revoke-access API so owners can revoke sharing.
+
 ## Verification still required
 - Run npm install and npm start.
 - Test registration and login with two separate test accounts.
-- Test upload, download, share, and access denial for an unauthorized account.
+- Test upload, download, search, share, revoke, and access denial for an unauthorized account.
 - Verify PostgreSQL tables and audit records.
 - Test deployment with persistent private file storage and HTTPS.
 - Add each new error and its correction below.
