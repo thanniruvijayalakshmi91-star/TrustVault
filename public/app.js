@@ -1,15 +1,237 @@
-const authSection=document.getElementById("auth"),dashboard=document.getElementById("dashboard"),notice=document.getElementById("notice");let currentUser=null;
-function message(t,error=false){notice.textContent=t;notice.className=error?"notice error":"notice";}
-async function api(url,options={}){const r=await fetch(url,{credentials:"same-origin",...options});const data=(r.headers.get("content-type")||"").includes("application/json")?await r.json():null;if(!r.ok)throw new Error(data?.message||"Request failed.");return data;}
-function values(form){return Object.fromEntries(new FormData(form).entries());}
-document.getElementById("loginForm").addEventListener("submit",async e=>{e.preventDefault();try{await api("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(values(e.target))});e.target.reset();await loadApp();message("Logged in successfully.");}catch(x){message(x.message,true);}});
-document.getElementById("registerForm").addEventListener("submit",async e=>{e.preventDefault();try{await api("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(values(e.target))});e.target.reset();await loadApp();message("Account created.");}catch(x){message(x.message,true);}});
-document.getElementById("logout").addEventListener("click",async()=>{try{await api("/api/auth/logout",{method:"POST"});showAuth();message("Logged out.");}catch(e){message(e.message,true);}});
-document.getElementById("refresh").addEventListener("click",loadDocuments);
-document.getElementById("uploadForm").addEventListener("submit",async e=>{e.preventDefault();try{await api("/api/documents/upload",{method:"POST",body:new FormData(e.target)});e.target.reset();await loadDocuments();message("Document uploaded.");}catch(x){message(x.message,true);}});
-function showAuth(){authSection.hidden=false;dashboard.hidden=true;document.getElementById("account").textContent="";}
-async function loadApp(){try{const r=await api("/api/auth/me");currentUser=r.user;authSection.hidden=true;dashboard.hidden=false;document.getElementById("account").textContent=currentUser.name+" · "+currentUser.role;document.getElementById("welcome").textContent="Hello, "+currentUser.name;document.getElementById("adminPanel").hidden=currentUser.role!=="admin";await loadDocuments();if(currentUser.role==="admin")await loadAdmin();}catch(_){showAuth();}}
-async function loadDocuments(){try{const r=await api("/api/documents"),list=document.getElementById("documentList");list.innerHTML="";if(!r.documents.length){list.textContent="No documents yet. Upload your first file above.";return;}r.documents.forEach(d=>{const card=document.createElement("article");card.className="doc-card";const h=document.createElement("h4");h.textContent="📄 "+d.original_name;const meta=document.createElement("p");meta.className="doc-meta";meta.textContent="Owner: "+d.owner_name+" · "+Math.max(1,Math.round(Number(d.file_size)/1024))+" KB · "+d.permission+" access";const actions=document.createElement("div");actions.className="actions";const down=document.createElement("button");down.textContent="Download";down.onclick=()=>download(d.id);actions.append(down);card.append(h,meta,actions);if(d.is_owner){const del=document.createElement("button");del.className="outline";del.textContent="Delete";del.onclick=async()=>{if(!confirm("Delete this document?"))return;try{await api("/api/documents/"+d.id,{method:"DELETE"});await loadDocuments();message("Document deleted.");}catch(e){message(e.message,true);}};actions.append(del);const form=document.createElement("form");form.className="share-form";const email=document.createElement("input");email.type="email";email.placeholder="Registered user's email";email.required=true;const permission=document.createElement("select");permission.innerHTML='<option value="read">Read</option><option value="edit">Edit</option>';const submit=document.createElement("button");submit.textContent="Share";form.append(email,permission,submit);form.onsubmit=async e=>{e.preventDefault();try{await api("/api/documents/"+d.id+"/share",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email.value,permission:permission.value})});form.reset();message("Access granted.");}catch(x){message(x.message,true);}};card.append(form);}list.append(card);});}catch(e){message(e.message,true);}}
-async function download(id){try{const r=await fetch("/api/documents/"+id+"/download",{credentials:"same-origin"});if(!r.ok){const d=await r.json();throw new Error(d.message||"Download failed.");}const blob=await r.blob(),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="document";a.click();URL.revokeObjectURL(url);}catch(e){message(e.message,true);}}
-async function loadAdmin(){try{const d=await api("/api/admin/stats");document.getElementById("stats").innerHTML=[["Users",d.users],["Documents",d.documents],["Shares",d.shares]].map(([k,v])=>'<div class="stat"><strong>'+v+"</strong>"+k+"</div>").join("");document.getElementById("activity").innerHTML=d.recentActivity.map(x=>'<div class="activity-row">'+new Date(x.created_at).toLocaleString()+" · "+escapeHtml(x.action)+" · "+escapeHtml(x.details||"")+"</div>").join("")||"No activity yet.";}catch(e){message(e.message,true);}}
-function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}loadApp();
+const authSection = document.getElementById("auth");
+const dashboard = document.getElementById("dashboard");
+const notice = document.getElementById("notice");
+const searchInput = document.getElementById("searchDocuments");
+let currentUser = null;
+let searchTimer = null;
+
+function message(text, error = false) {
+  notice.textContent = text;
+  notice.className = error ? "notice error" : "notice";
+}
+async function api(url, options = {}) {
+  const response = await fetch(url, { credentials: "same-origin", ...options });
+  const data = (response.headers.get("content-type") || "").includes("application/json")
+    ? await response.json() : null;
+  if (!response.ok) throw new Error(data?.message || "Request failed.");
+  return data;
+}
+function formValues(form) {
+  return Object.fromEntries(new FormData(form).entries());
+}
+
+document.getElementById("loginForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  try {
+    await api("/api/auth/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formValues(event.target))
+    });
+    event.target.reset();
+    await loadApp();
+    message("Logged in successfully.");
+  } catch (error) { message(error.message, true); }
+});
+document.getElementById("registerForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  try {
+    await api("/api/auth/register", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formValues(event.target))
+    });
+    event.target.reset();
+    await loadApp();
+    message("Account created successfully.");
+  } catch (error) { message(error.message, true); }
+});
+document.getElementById("logout").addEventListener("click", async () => {
+  try {
+    await api("/api/auth/logout", { method: "POST" });
+    showAuth();
+    message("Logged out.");
+  } catch (error) { message(error.message, true); }
+});
+document.getElementById("refresh").addEventListener("click", loadDocuments);
+searchInput.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(loadDocuments, 250);
+});
+document.getElementById("uploadForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  try {
+    await api("/api/documents/upload", { method: "POST", body: new FormData(event.target) });
+    event.target.reset();
+    await loadDocuments();
+    message("Document uploaded.");
+  } catch (error) { message(error.message, true); }
+});
+
+function showAuth() {
+  authSection.hidden = false;
+  dashboard.hidden = true;
+  document.getElementById("account").textContent = "";
+}
+function makeButton(label, className, handler) {
+  const button = document.createElement("button");
+  button.textContent = label;
+  if (className) button.className = className;
+  button.addEventListener("click", handler);
+  return button;
+}
+async function loadApp() {
+  try {
+    const result = await api("/api/auth/me");
+    currentUser = result.user;
+    authSection.hidden = true;
+    dashboard.hidden = false;
+    document.getElementById("account").textContent = currentUser.name + " · " + currentUser.role;
+    document.getElementById("welcome").textContent = "Hello, " + currentUser.name;
+    document.getElementById("adminPanel").hidden = currentUser.role !== "admin";
+    await loadDocuments();
+    if (currentUser.role === "admin") await loadAdmin();
+  } catch (_) { showAuth(); }
+}
+async function loadDocuments() {
+  try {
+    const query = searchInput.value.trim();
+    const result = await api("/api/documents?q=" + encodeURIComponent(query));
+    const list = document.getElementById("documentList");
+    list.replaceChildren();
+    if (!result.documents.length) {
+      list.textContent = query ? "No matching documents found." : "No documents yet. Upload your first file above.";
+      return;
+    }
+    for (const documentInfo of result.documents) {
+      const card = document.createElement("article");
+      card.className = "doc-card";
+      const heading = document.createElement("h4");
+      heading.textContent = "📄 " + documentInfo.original_name;
+      const meta = document.createElement("p");
+      meta.className = "doc-meta";
+      meta.textContent = "Owner: " + documentInfo.owner_name + " · " +
+        Math.max(1, Math.round(Number(documentInfo.file_size) / 1024)) + " KB · " +
+        documentInfo.permission + " access";
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      actions.append(makeButton("Download", "", () => downloadDocument(documentInfo.id)));
+      card.append(heading, meta, actions);
+
+      if (documentInfo.is_owner) {
+        actions.append(makeButton("Delete", "outline", async () => {
+          if (!confirm("Delete this document permanently?")) return;
+          try {
+            await api("/api/documents/" + documentInfo.id, { method: "DELETE" });
+            await loadDocuments();
+            message("Document deleted.");
+          } catch (error) { message(error.message, true); }
+        }));
+        const shareForm = document.createElement("form");
+        shareForm.className = "share-form";
+        const email = document.createElement("input");
+        email.type = "email";
+        email.placeholder = "Registered user's email";
+        email.required = true;
+        const permission = document.createElement("select");
+        for (const value of ["read", "edit"]) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value === "read" ? "Read" : "Edit";
+          permission.append(option);
+        }
+        shareForm.append(email, permission, makeButton("Share", "", null));
+        shareForm.addEventListener("submit", async event => {
+          event.preventDefault();
+          try {
+            await api("/api/documents/" + documentInfo.id + "/share", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: email.value, permission: permission.value })
+            });
+            shareForm.reset();
+            await loadShares(documentInfo.id, card);
+            message("Access granted.");
+          } catch (error) { message(error.message, true); }
+        });
+        const shares = document.createElement("div");
+        shares.className = "shares-list";
+        card.append(shareForm, shares);
+        loadShares(documentInfo.id, card);
+      }
+      list.append(card);
+    }
+  } catch (error) { message(error.message, true); }
+}
+async function loadShares(documentId, card) {
+  const container = card.querySelector(".shares-list");
+  if (!container) return;
+  try {
+    const result = await api("/api/documents/" + documentId + "/shares");
+    container.replaceChildren();
+    if (!result.shares.length) {
+      const empty = document.createElement("p");
+      empty.className = "doc-meta";
+      empty.textContent = "Not shared with anyone yet.";
+      container.append(empty);
+      return;
+    }
+    const title = document.createElement("p");
+    title.className = "doc-meta";
+    title.textContent = "People with access:";
+    container.append(title);
+    for (const share of result.shares) {
+      const row = document.createElement("div");
+      row.className = "share-row";
+      const label = document.createElement("span");
+      label.textContent = share.name + " (" + share.email + ") · " + share.permission;
+      row.append(label, makeButton("Revoke", "outline", async () => {
+        if (!confirm("Revoke this user's access?")) return;
+        try {
+          await api("/api/documents/" + documentId + "/share/" + share.user_id, { method: "DELETE" });
+          await loadShares(documentId, card);
+          message("Access revoked.");
+        } catch (error) { message(error.message, true); }
+      }));
+      container.append(row);
+    }
+  } catch (error) { message(error.message, true); }
+}
+async function downloadDocument(id) {
+  try {
+    const response = await fetch("/api/documents/" + id + "/download", { credentials: "same-origin" });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || "Download failed.");
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "document";
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) { message(error.message, true); }
+}
+async function loadAdmin() {
+  try {
+    const data = await api("/api/admin/stats");
+    const stats = document.getElementById("stats");
+    stats.replaceChildren();
+    for (const [label, value] of [["Users", data.users], ["Documents", data.documents], ["Shares", data.shares]]) {
+      const item = document.createElement("div");
+      item.className = "stat";
+      const number = document.createElement("strong");
+      number.textContent = value;
+      item.append(number, document.createTextNode(label));
+      stats.append(item);
+    }
+    const activity = document.getElementById("activity");
+    activity.replaceChildren();
+    if (!data.recentActivity.length) activity.textContent = "No activity yet.";
+    for (const item of data.recentActivity) {
+      const row = document.createElement("div");
+      row.className = "activity-row";
+      row.textContent = new Date(item.created_at).toLocaleString() + " · " + item.action + " · " + (item.details || "");
+      activity.append(row);
+    }
+  } catch (error) { message(error.message, true); }
+}
+loadApp();
