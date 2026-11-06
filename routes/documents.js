@@ -14,7 +14,7 @@ const upload=multer({storage:multer.diskStorage({destination:(_r,_f,cb)=>cb(null
 async function audit(uid,action,details){await pool.query("INSERT INTO audit_logs(user_id,action,details) VALUES($1,$2,$3)",[uid,action,details]);}
 async function auditDenied(uid,action,details){await pool.query("INSERT INTO audit_logs(user_id,action,details) VALUES($1,$2,$3)",[uid,action,details]);}
 async function access(id,user){
- const r=await pool.query(`SELECT d.*,CASE WHEN d.owner_id=$2 OR $3='admin' THEN 'owner' ELSE s.permission END permission
+ const r=await pool.query(`SELECT d.*,CASE WHEN (d.owner_id=$2 AND $3<>'viewer') OR $3='admin' THEN 'owner' WHEN d.owner_id=$2 AND $3='viewer' THEN 'read' ELSE s.permission END permission
  FROM documents d LEFT JOIN document_shares s ON s.document_id=d.id AND s.user_id=$2
  WHERE d.id=$1 AND (d.owner_id=$2 OR $3='admin' OR s.user_id=$2)`,[id,user.id,user.role]);return r.rows[0];
 }
@@ -22,8 +22,8 @@ router.get("/",requireAuth,async(req,res)=>{
  try{
   const q=String(req.query.q||"").trim().slice(0,100), category=String(req.query.category||"").trim().slice(0,100), from=String(req.query.from||"").trim(), to=String(req.query.to||"").trim();
   const r=await pool.query(`SELECT d.id,d.original_name,d.mime_type,d.file_size,d.created_at,d.category,u.name owner_name,
-   CASE WHEN d.owner_id=$1 OR $2='admin' THEN 'owner' ELSE s.permission END permission,
-   (d.owner_id=$1 OR $2='admin') is_owner
+   CASE WHEN (d.owner_id=$1 AND $2<>'viewer') OR $2='admin' THEN 'owner' WHEN d.owner_id=$1 AND $2='viewer' THEN 'read' ELSE s.permission END permission,
+   ((d.owner_id=$1 AND $2<>'viewer') OR $2='admin') is_owner
    FROM documents d JOIN users u ON u.id=d.owner_id LEFT JOIN document_shares s ON s.document_id=d.id AND s.user_id=$1
    WHERE (d.owner_id=$1 OR $2='admin' OR s.user_id=$1)
    AND ($3='' OR d.original_name ILIKE '%' || $3 || '%' OR u.name ILIKE '%' || $3 || '%')
@@ -62,6 +62,7 @@ async function validateFile(file){
 }
 router.post("/upload",requireAuth,upload.single("document"),async(req,res)=>{
  if(!req.file)return res.status(400).json({message:"Choose a file."});
+ if(req.user.role==="viewer"){fs.unlink(req.file.path,()=>{});await auditDenied(req.user.id,"DENIED_UPLOAD","Viewer role cannot upload documents");return res.status(403).json({message:"Viewer accounts cannot upload documents."});}
  try{
   if(!(await validateFile(req.file))){fs.unlink(req.file.path,()=>{});return res.status(400).json({message:"The file content does not match its selected file type."});}
   const category=String(req.body.category||"Uncategorized").trim().slice(0,100)||"Uncategorized";
