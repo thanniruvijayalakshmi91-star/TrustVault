@@ -28,3 +28,11 @@ This file records AI-assisted development for the Snovasys challenge. Review, te
 - Verify PostgreSQL tables and audit records.
 - Test deployment with persistent private file storage and HTTPS.
 - Add each new error and its correction below.
+
+
+## 2026-11-06 — Authorization review of existing sharing code
+- Asked AI to compare the existing TrustVault repository with the Snovasys project 695 requirements and identify missing security behavior.
+- AI review found that the project had owner/admin checks and read/edit share labels, but the authorization rules were embedded in route handlers and had no focused automated tests.
+- Correction: extracted document permission decisions into a small server-side policy module and added Node.js tests for owner, read-share, edit-share, and admin cases.
+- Verification: added tests to the repository; run `npm test` and review the GitHub Actions result. These policy tests do not replace end-to-end database/API tests.
+- Commit: see the GitHub commit history for the dated authorization-policy and test additions.
