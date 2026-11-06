@@ -2,6 +2,9 @@ const authSection = document.getElementById("auth");
 const dashboard = document.getElementById("dashboard");
 const notice = document.getElementById("notice");
 const searchInput = document.getElementById("searchDocuments");
+const categoryFilter = document.getElementById("categoryFilter");
+const fromDate = document.getElementById("fromDate");
+const toDate = document.getElementById("toDate");
 let currentUser = null;
 let searchTimer = null;
 
@@ -52,7 +55,7 @@ document.getElementById("logout").addEventListener("click", async () => {
   } catch (error) { message(error.message, true); }
 });
 document.getElementById("refresh").addEventListener("click", loadDocuments);
-searchInput.addEventListener("input", () => {
+for (const filter of [searchInput, categoryFilter, fromDate, toDate]) filter.addEventListener("input", () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(loadDocuments, 250);
 });
@@ -93,8 +96,8 @@ async function loadApp() {
 }
 async function loadDocuments() {
   try {
-    const query = searchInput.value.trim();
-    const result = await api("/api/documents?q=" + encodeURIComponent(query));
+    const query = new URLSearchParams({q: searchInput.value.trim(), category: categoryFilter.value.trim(), from: fromDate.value, to: toDate.value});
+    const result = await api("/api/documents?" + query.toString());
     const list = document.getElementById("documentList");
     list.replaceChildren();
     if (!result.documents.length) {
@@ -108,7 +111,7 @@ async function loadDocuments() {
       heading.textContent = "📄 " + documentInfo.original_name;
       const meta = document.createElement("p");
       meta.className = "doc-meta";
-      meta.textContent = "Owner: " + documentInfo.owner_name + " · " +
+      meta.textContent = "Owner: " + documentInfo.owner_name + " · Category: " + (documentInfo.category || "Uncategorized") + " · " +
         Math.max(1, Math.round(Number(documentInfo.file_size) / 1024)) + " KB · " +
         documentInfo.permission + " access";
       const actions = document.createElement("div");
