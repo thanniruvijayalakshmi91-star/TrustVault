@@ -9,8 +9,8 @@ All endpoints are served by the Express application. Unless stated otherwise, JS
 | GET /api/auth/me | Signed-in user | Return the current session user |
 | POST /api/auth/logout | Signed-in user | End the session |
 | GET /api/health | Public | Check database connectivity |
-| GET /api/documents | Signed-in user | List/search only documents the user owns, administers, or has been shared with |
-| POST /api/documents/upload | Signed-in user | Upload a validated document |
+| GET /api/documents | Signed-in user | List/search permitted documents by filename/owner, category, and created date range |
+| POST /api/documents/upload | Signed-in user | Upload a validated document and assign a category |\n| POST /api/documents/:id/replace | Owner, admin, or user with edit share | Replace document contents after server-side edit authorization; records an EDIT event |
 | GET /api/documents/:id/download | Owner, admin, or user with read/edit share | Download a permitted document |
 | GET /api/documents/:id/shares | Owner or admin | List users who have access |
 | POST /api/documents/:id/share | Owner or admin | Grant read/edit permission to a registered user |
