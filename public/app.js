@@ -90,6 +90,7 @@ async function loadApp() {
     document.getElementById("account").textContent = currentUser.name + " · " + currentUser.role;
     document.getElementById("welcome").textContent = "Hello, " + currentUser.name;
     document.getElementById("adminPanel").hidden = currentUser.role !== "admin";
+    document.querySelector(".upload-panel").hidden = currentUser.role === "viewer";
     await loadDocuments();
     if (currentUser.role === "admin") await loadAdmin();
   } catch (_) { showAuth(); }
@@ -118,7 +119,7 @@ async function loadDocuments() {
       actions.className = "actions";
       actions.append(makeButton("Download", "", () => downloadDocument(documentInfo.id)));
       card.append(heading, meta, actions);
-      if (!documentInfo.is_owner && documentInfo.permission === "edit") {
+      if (currentUser.role !== "viewer" && !documentInfo.is_owner && documentInfo.permission === "edit") {
         const replaceForm = document.createElement("form");
         replaceForm.className = "share-form";
         const replacement = document.createElement("input");
