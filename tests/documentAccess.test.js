@@ -39,3 +39,10 @@ test("missing document or user is always denied", () => {
   assert.equal(canEditDocument(document, null), false);
   assert.equal(canManageDocument(null, admin), false);
 });
+
+test("viewer role can read but cannot edit or manage, even their own document", () => {
+  const viewer = { id: 5, role: "viewer" };
+  assert.equal(canReadDocument(document, viewer), true);
+  assert.equal(canEditDocument(document, viewer), false);
+  assert.equal(canManageDocument(document, viewer), false);
+});
