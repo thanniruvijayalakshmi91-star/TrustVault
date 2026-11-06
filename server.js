@@ -35,6 +35,15 @@ app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) return res.status(404).json({ message: "API route not found." });
   res.sendFile(path.join(__dirname, "public", "index.html"), err => { if (err) next(err); });
 });
+app.use((error, req, res, _next) => {
+  console.error("Request error:", error.message);
+  if (res.headersSent) return;
+  if (req.path.startsWith("/api/")) {
+    const status = error.code === "LIMIT_FILE_SIZE" ? 400 : 400;
+    return res.status(status).json({ message: error.code === "LIMIT_FILE_SIZE" ? "File is larger than the 10 MB limit." : error.message || "Request could not be completed." });
+  }
+  res.status(500).send("Something went wrong. Please try again.");
+});
 
 async function start() {
   if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) throw new Error("Set SESSION_SECRET to a random value of at least 32 characters.");
