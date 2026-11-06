@@ -7,6 +7,7 @@ TrustVault is a Node.js and Express web application for storing documents privat
 - User registration and login with bcrypt password hashing.
 - PostgreSQL-backed sessions.
 - Owner and admin roles; document sharing with read or edit access.
+- Admin privileges are granted only through an explicit server-side command, never by public registration.
 - Private document upload and authorized download.
 - Grant, review, and revoke document access.
 - Search accessible documents by file name or owner.
@@ -120,3 +121,13 @@ Open http://localhost:5000.
 - Do not commit `.env`, database credentials, session secrets, or uploaded documents.
 - File signature checks are basic validation, not malware scanning or a guarantee that a file is safe.
 - Run the manual test checklist before submitting. The syntax check alone does not prove that database, browser, upload, or deployment behavior works.
+
+
+## Configure the first administrator
+
+1. Register the intended administrator using the normal registration form.
+2. Set `ADMIN_EMAIL` in the server environment to that account's email address.
+3. Run `npm run make-admin` once from a trusted terminal connected to the same database.
+4. Restart the application and sign in again. Public registration always creates a normal owner account; it cannot grant admin privileges.
+
+Do not expose the admin promotion command to the public website.
