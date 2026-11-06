@@ -20,7 +20,7 @@ This file records AI-assisted development for the Snovasys challenge. Review, te
 ## Verification still required
 - Run npm install and npm start.
 - Test registration and login with two separate test accounts.
-- Test upload, download, search, share, revoke, and access denial for an unauthorized account.
+- Test upload (including a renamed or invalid file), download, search, share, revoke, and access denial for an unauthorized account.
 - Verify PostgreSQL tables and audit records.
 - Test deployment with persistent private file storage and HTTPS.
 - Add each new error and its correction below.
